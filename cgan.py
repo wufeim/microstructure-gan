@@ -205,6 +205,8 @@ class CGAN(object):
             plt.close('all')
 
     def build_and_train_models(self):
+        img_rows = self.img_rows
+        img_cols = self.img_cols
         num_classes = self.num_classes
         model_name = self.model_name
         latent_size = self.latent_size
@@ -242,5 +244,6 @@ class CGAN(object):
         self.adversarial_model.summary()
 
 if __name__=='__main__':
-    build_and_train_models()
+    cgan = CGAN()
+    cgan.build_and_train_models()
         
