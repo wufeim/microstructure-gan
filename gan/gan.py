@@ -123,14 +123,26 @@ class GAN():
             if epoch % sample_interval == 0:
                 self.sample_images(epoch)
 
-    def sample_images(self):
+    def sample_images(self, epoch):
         
         r, c = 5, 5
         noise = np.random.normal(0, 1, (r * c, self.latent_dim))
         gen_imgs = self.generator.predict(noise)
 
+        gen_imgs = 0.5 * gen_imgs + 0.5
+
+        fig, ax = plt.subplots(r, c)
+        cnt = 0
+        for i in range(r):
+            for j in range(r):
+                ax[i, j].imshow(gen_imgs[cnt, :, :, 0], cmap='gray')
+                ax[i, j].axis('off')
+                cnt += 1
+        fig.savefig('images/{:d}.png'.format(epoch))
+        plt.close()
+
 if __name__=='__main__':
 
     gan = GAN()
-    gan.train(epochs=30000, batch_size=32, sample_interval=200)
+    gan.train(epochs=1, batch_size=32, sample_interval=200)
 
