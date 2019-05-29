@@ -91,7 +91,7 @@ class GAN():
         X_train = np.expand_dims(X_train, axis=3)    # from (60000, 28, 28) to (60000, 28, 28, 1)
 
         valid = np.ones((batch_size, 1))
-        fake = np.ones((batch_size, 0))
+        fake = np.zeros((batch_size, 1))
 
         for epoch in range(epochs):
             
@@ -138,11 +138,12 @@ class GAN():
                 ax[i, j].imshow(gen_imgs[cnt, :, :, 0], cmap='gray')
                 ax[i, j].axis('off')
                 cnt += 1
-        fig.savefig('images/{:d}.png'.format(epoch))
+        fig.savefig('mnist-images/{:d}.png'.format(epoch))
         plt.close()
 
 if __name__=='__main__':
 
+    os.makedirs('mnist-images', exist_ok=True)
     gan = GAN()
     gan.train(epochs=1, batch_size=32, sample_interval=200)
 
