@@ -11,6 +11,8 @@ from keras.layers.convolutional import UpSampling2D, Conv2D
 from keras.models import Sequential, Model
 from keras.optimizers import Adam
 
+import matplotlib.pyplot as plt
+
 class CGAN():
     
     def __init__(self):
@@ -29,6 +31,9 @@ class CGAN():
                                          optimizer=optimizer,
                                          metrics=['accuracy'])
 
+        print('\n\nDiscriminator:')
+        self.discriminator.summary()
+
         self.generator = self.build_generator()
 
         noise = Input(shape=(self.latent_dim, ))
@@ -42,6 +47,9 @@ class CGAN():
         self.combined = Model([noise, label], valid)
         self.combined.compile(loss=['binary_crossentropy'],
                               optimizer=optimizer)
+
+        print('\n\nCombined:')
+        self.combined.summary()
 
     def build_discriminator(self):
 
@@ -130,7 +138,7 @@ class CGAN():
             #  Train Generator
             # -----------------
 
-            sampled_labels = np.random.randint(0, 10, batch_size).reshape(1, -1)
+            sampled_labels = np.random.randint(0, 10, batch_size).reshape(-1, 1)
 
             g_loss = self.combined.train_on_batch([noise, sampled_labels], valid)
 
@@ -143,7 +151,7 @@ class CGAN():
 
         r, c = 2, 5
         noise = np.random.normal(0, 1, (r * c, 100))
-        sample_labels = np.arange(0, 10).reshape(-1, 1)
+        sampled_labels = np.arange(0, 10).reshape(-1, 1)
 
         gen_imgs = self.generator.predict([noise, sampled_labels])
 
@@ -161,6 +169,7 @@ class CGAN():
 
 if __name__=='__main__':
         
+    os.makedirs('cgan-mnist', exist_ok=True)
     cgan = CGAN()
-    cgan.train(epochs=30000, batch_size=32, sample_interval=200)
+    cgan.train(epochs=1, batch_size=32, sample_interval=200)
 
