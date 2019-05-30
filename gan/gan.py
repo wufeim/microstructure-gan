@@ -22,7 +22,7 @@ class GAN():
         self.img_shape = (self.img_rows, self.img_cols, self.channels)
         self.latent_dim = 100
 
-        optimizer = Adam(0.002, 0.5)
+        optimizer = Adam(0.0002, 0.5)
 
         self.discriminator = self.build_discriminator()
         self.discriminator.compile(loss='binary_crossentropy',
