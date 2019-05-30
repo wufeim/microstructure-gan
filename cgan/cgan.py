@@ -62,7 +62,14 @@ class CGAN():
         img = Input(shape=self.img_shape)
         label = Input(shape=(1, ), dtype='int32')
 
-        label
+        label_embedding = Flatten()(Embedding(self.num_classes, np.prod(self.img_shape))(label))
+        flat_img = Flatten()(img)
+
+        model_input = multiply([flat_img, label_embedding])
+
+        validity = model(model_input)
+
+        return Model([img, label], validity)
 
     def build_generator(self):
 
@@ -93,11 +100,64 @@ class CGAN():
 
     def train(self, epochs, batch_size=128, sample_interval=50):
     
-        return
+        (X_train, y_train), (_, _) = mnist.load_data()
+
+        X_train = (X_train.astype(np.float32) - 127.5) / 127.5
+        X_train = np.expand_dims(X_train, axis=3)
+        y_train = y_train.reshape(-1, 1)
+
+        valid = np.ones((batch_size, 1))
+        fake = np.zeros((batch_size, 1))
+
+        for epoch in range(epochs):
+            
+            # ---------------------
+            #  Train Discriminator
+            # ---------------------
+
+            idx = np.random.randint(0, X_train.shape[0], batch_size)
+            imgs, labels = X_train[idx], y_train[idx]
+
+            noise = np.random.normal(0, 1, (batch_size, 100))
+            
+            gen_imgs = self.generator.predict([noise, labels])
+
+            d_loss_real = self.discriminator.train_on_batch([imgs, labels], valid)
+            d_loss_fake = self.discriminator.train_on_batch([gen_imgs, labels], fake)
+            d_loss = 0.5 * np.add([d_loss_real, d_loss_fake])
+
+            # -----------------
+            #  Train Generator
+            # -----------------
+
+            sampled_labels = np.random.randint(0, 10, batch_size).reshape(1, -1)
+
+            g_loss = self.combined.train_on_batch([noise, sampled_labels], valid)
+
+            print('{:d} [D loss: {:f}, acc: {:.2f}%] [G loss: {:f}]'.format(epoch, d_loss[0], d_loss[1] * 100, g_loss))
+
+            if epoch % sample_interval == 0:
+                self.sample_images(epoch)
 
     def sample_images(self, epoch):
 
-        return
+        r, c = 2, 5
+        noise = np.random.normal(0, 1, (r * c, 100))
+        sample_labels = np.arange(0, 10).reshape(-1, 1)
+
+        gen_imgs = self.generator.predict([noise, sampled_labels])
+
+        gen_imgs = 0.5 * gen_imgs + 0.5
+
+        fig, ax = plt.subplots(r, c)
+        cnt = 0
+        for i in range(r):
+            for j in range(c):
+                ax[i, j].imshow(gen_imgs[cnt, :, :, 0], cmap='gray')
+                ax[i, j].set_title('Digit: {:d}'.format(cnt))
+                ax[i, j].axis('off')
+        fig.savefig('cgan-mnist/{:d}.png'.format(epoch))
+        plt.close()
 
     if __name__=='__main__':
         
