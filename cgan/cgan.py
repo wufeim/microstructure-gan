@@ -164,6 +164,7 @@ class CGAN():
                 ax[i, j].imshow(gen_imgs[cnt, :, :, 0], cmap='gray')
                 ax[i, j].set_title('Digit: {:d}'.format(cnt))
                 ax[i, j].axis('off')
+                cnt += 1
         fig.savefig('cgan-mnist/{:d}.png'.format(epoch))
         plt.close()
 
@@ -171,5 +172,5 @@ if __name__=='__main__':
         
     os.makedirs('cgan-mnist', exist_ok=True)
     cgan = CGAN()
-    cgan.train(epochs=1, batch_size=32, sample_interval=200)
+    cgan.train(epochs=30000, batch_size=32, sample_interval=200)
 
