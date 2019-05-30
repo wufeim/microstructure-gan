@@ -145,5 +145,5 @@ if __name__=='__main__':
 
     os.makedirs('mnist-images', exist_ok=True)
     gan = GAN()
-    gan.train(epochs=30000, batch_size=32, sample_interval=200)
+    gan.train(epochs=40000, batch_size=32, sample_interval=500)
 
