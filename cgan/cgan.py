@@ -6,7 +6,7 @@ import numpy as np
 from keras.datasets import mnist
 from keras.layers import Input, Dense, Reshape, Flatten, Dropout, multiply
 from keras.layers import BatchNormalization, Activation, Embedding, ZeroPadding2D
-from kears.layers.advanced_activations import LeakyReLU
+from keras.layers.advanced_activations import LeakyReLU
 from keras.layers.convolutional import UpSampling2D, Conv2D
 from keras.models import Sequential, Model
 from keras.optimizers import Adam
@@ -31,7 +31,7 @@ class CGAN():
 
         self.generator = self.build_generator()
 
-        noise = Input(shape=(self.laten_dim, ))
+        noise = Input(shape=(self.latent_dim, ))
         label = Input(shape=(1, ))
         img = self.generator([noise, label])
 
@@ -82,10 +82,10 @@ class CGAN():
         model.add(LeakyReLU(alpha=0.2))
         model.add(BatchNormalization(momentum=0.8))
         model.add(Dense(1024))
-        model.add(LeakyLU(alpha=0.2))
+        model.add(LeakyReLU(alpha=0.2))
         model.add(BatchNormalization(momentum=0.8))
         model.add(Dense(np.prod(self.img_shape), activation='tanh'))
-        model.add(Reshape(self.img_shape0))
+        model.add(Reshape(self.img_shape))
 
         model.summary()
 
@@ -124,7 +124,7 @@ class CGAN():
 
             d_loss_real = self.discriminator.train_on_batch([imgs, labels], valid)
             d_loss_fake = self.discriminator.train_on_batch([gen_imgs, labels], fake)
-            d_loss = 0.5 * np.add([d_loss_real, d_loss_fake])
+            d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
 
             # -----------------
             #  Train Generator
@@ -159,8 +159,8 @@ class CGAN():
         fig.savefig('cgan-mnist/{:d}.png'.format(epoch))
         plt.close()
 
-    if __name__=='__main__':
+if __name__=='__main__':
         
-        cgan = CGAN()
-        cgan.train(epochs=30000, batch_size=32, sample_interval=200)
+    cgan = CGAN()
+    cgan.train(epochs=30000, batch_size=32, sample_interval=200)
 
