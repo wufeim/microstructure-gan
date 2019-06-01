@@ -7,7 +7,7 @@ import numpy as np
 from keras.layers import Input, Dense, Reshape, Flatten, Dropout, multiply
 from keras.layers import BatchNormalization, Activation, Embedding, ZeroPadding2D
 from keras.layers.advanced_activations import LeakyReLU
-from keras.layers.convolutional import UpSampling2D, Conv2D
+from keras.layers.convolutional import UpSampling2D, Conv2D, Conv2DTranspose
 from keras.models import Sequential, Model
 from keras.optimizers import Adam
 
@@ -45,7 +45,7 @@ class CGAN():
         valid = self.discriminator([img, label])
 
         self.combined = Model([noise, label], valid)
-        self.combined.compile(loss=['binary_crossentropy',
+        self.combined.compile(loss=['binary_crossentropy'],
                               optimizer=optimizer)
 
         # initialization for training images
@@ -62,30 +62,28 @@ class CGAN():
         for c in self.class_names:
             self._img_names += glob.glob('data/{:s}/*.tif'.format(c))
 
-    def build_discriminator():
+    def build_discriminator(self):
 
         model = Sequential()
 
         # discriminator structure from pix2pixHD
-        '''
-        model.add(Conv2D(64, (4, 4), strides=2)
+        model.add(Conv2D(64, (4, 4), strides=2))
         model.add(LeakyReLU(alpha=0.2))
 
-        model.add(Conv2D(128, (4, 4), strides=2)
+        model.add(Conv2D(128, (4, 4), strides=2))
         model.add(InstanceNormalization())
         model.add(LeakyReLU(alpha=0.2))
 
-        model.add(Conv2D(256, (4, 4), strides=2)
+        model.add(Conv2D(256, (4, 4), strides=2))
         model.add(InstanceNormalization())
         model.add(LeakyReLU(alpha=0.2))
 
-        model.add(Conv2D(512, (4, 4), strides=2)
+        model.add(Conv2D(512, (4, 4), strides=2))
         model.add(InstanceNormalization())
         model.add(LeakyReLU(alpha=0.2))
 
         model.add(Flatten())
-        model.add(Dense(1, activation='sigmoid')
-        '''
+        model.add(Dense(1, activation='sigmoid'))
 
         img = Input(shape=self.img_shape)
         flat_img = Flatten()(img)
@@ -94,6 +92,7 @@ class CGAN():
         label_embedding = Flatten()(Embedding(self.num_classes, np.prod(self.img_shape))(label))
 
         model_input = multiply([flat_img, label_embedding])
+        model_input = Reshape(self.img_shape)(model_input)
 
         validity = model(model_input)
 
@@ -105,25 +104,31 @@ class CGAN():
         return m
 
 
-    def build_generator():
+    def build_generator(self):
     
         model = Sequential()
 
-        model.add(Conv2DTranspose(512, (4, 4), strides=2, activation='relu'))
+        model.add(Dense((self.img_shape[0] // 32) * (self.img_shape[1] // 32), input_dim=self.latent_dim))
+        model.add(Dense((self.img_shape[0] // 16) * (self.img_shape[1] // 16)))
+        model.add(Reshape((self.img_shape[0] // 16, self.img_shape[1] // 16, 1)))
         model.add(BatchNormalization())
-        model.add(Conv2DTranspose(256, (4, 4), strides=2, activation='relu'))
+        model.add(Conv2DTranspose(512, (4, 4), strides=2, padding='same', activation='relu'))
         model.add(BatchNormalization())
-        model.add(Conv2DTranspose(128, (4, 4), strides=2, activation='relu'))
+        model.add(Conv2DTranspose(256, (4, 4), strides=2, padding='same', activation='relu'))
         model.add(BatchNormalization())
-        model.add(Conv2DTranspose(64, (4, 4), strides=2, activation='relu'))
+        model.add(Conv2DTranspose(128, (4, 4), strides=2, padding='same', activation='relu'))
         model.add(BatchNormalization())
-        model.add(Conv2DTranspose(1, (4, 4), strides=2, activation='tanh'))
+        model.add(Conv2DTranspose(64, (4, 4), strides=2, padding='same', activation='relu'))
+        model.add(BatchNormalization())
+        model.add(Conv2DTranspose(1, (4, 4), strides=1, padding='same', activation='tanh'))
 
         noise = Input(shape=(self.latent_dim, ))
+
         label = Input(shape=(1, ), dtype='int32')
         label_embedding = Flatten()(Embedding(self.num_classes, self.latent_dim)(label))
 
         model_input = multiply([noise, label_embedding])
+
         img = model(model_input)
 
         m = Model([noise, label], img)
@@ -210,5 +215,5 @@ if __name__=='__main__':
 
     os.makedirs('gen-ms', exist_ok=True)
     cgan = CGAN()
-    cgan.train(epochs=30000, batch_size=32, sample_interval=500)
+    cgan.train(epochs=1, batch_size=32, sample_interval=500)
 
