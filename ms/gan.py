@@ -15,19 +15,17 @@ from keras.models import Sequential, Model
 from keras.optimizers import Adam
 from keras.applications import VGG19
 
-from keras_contrib import InstanceNormalization
-
 import matplotlib.pyplot as plt
 
 class GAN():
-    
+
     def __init__(self):
 
         self.img_rows = 960
         self.img_cols = 1280
         self.channels = 1
         self.img_shape = (self.img_rows, self.img_cols, self.channels)
-        self.latent_size = 100
+        self.latent_dim = 100
 
         self._amplify_rate = 32
 
@@ -35,7 +33,7 @@ class GAN():
 
         self.discriminator = self.build_discriminator()
         self.discriminator.compile(loss='binary_crossentropy',
-                                   optimizer=optimizer,
+                                   optimizer=Adam(5e-6),
                                    metrics=['accuracy'])
 
         self.generator = self.build_generator()
@@ -49,7 +47,7 @@ class GAN():
         self.combined = Model(noise, validity)
         self.combined.compile(loss='binary_crossentropy',
                               optimizer=optimizer)
-    
+
     def build_generator(self):
 
         resized_size = (self.img_shape[0] // self._amplify_rate, self.img_shape[1] // self._amplify_rate, self.img_shape[2])
@@ -57,7 +55,9 @@ class GAN():
         model = Sequential()
 
         model.add(Dense(np.prod(np.array(resized_size))))
-        model.Reshape(resized_size)
+        model.add(Reshape(resized_size))
+        model.add(BatchNormalization())
+        model.add(Conv2DTranspose(512, (4, 4), strides=2, padding='same', activation='relu'))
         model.add(BatchNormalization())
         model.add(Conv2DTranspose(256, (4, 4), strides=2, padding='same', activation='relu'))
         model.add(BatchNormalization())
@@ -65,21 +65,23 @@ class GAN():
         model.add(BatchNormalization())
         model.add(Conv2DTranspose(64, (4, 4), strides=2, padding='same', activation='relu'))
         model.add(BatchNormalization())
-        model.add(Conv2DTranspose(32, (4, 4), strides=2, padding='same', activation='relu'))
-        model.add(BatchNormalization())
         model.add(Conv2DTranspose(1, (4, 4), strides=2, padding='same', activation='tanh'))
-
-        print('\n\nGenerator:')
-        model.summary()
 
         noise = Input(shape=(self.latent_dim, ))
         img = model(noise)
 
-        return Model(noise, img)
+        m = Model(noise, img)
+
+        print('\n\nGenerator:')
+        m.summary()
+
+        return m
 
     def build_discriminator(self):
 
-        conv_base = VGG19(weights='imagenet', include_top=False)
+        # VGG-19
+        '''
+        conv_base = VGG19(weights='imagenet', include_top=False, input_shape=self.img_shape)
         set_trainable = False
         for layer in conv_base.layers:
             if layer.name == 'block5_conv1':
@@ -88,21 +90,40 @@ class GAN():
                 layer.trainable = True
             else:
                 layer.trainable = False
+        model = Sequential()
+        model.add(conv_base)
+        model.add(Flatten())
+        jmodel.add(Dense(256, activation='relu'))
+        model.add(Dense(1, activation='sigmoid'))
+        '''
 
         model = Sequential()
 
-        model.add(conv_base)
+        model.add(Conv2D(64, (4, 4), strides=2, padding='same', activation='relu'))
+        model.add(BatchNormalization())
+        model.add(Conv2D(128, (4, 4), strides=2, padding='same', activation='relu'))
+        model.add(BatchNormalization())
+        model.add(Conv2D(256, (4, 4), strides=2, padding='same', activation='relu'))
+        model.add(BatchNormalization())
+        model.add(Conv2D(512, (4, 4), strides=2, padding='same', activation='relu'))
+        model.add(BatchNormalization())
         model.add(Flatten())
+        model.add(Dense(4096, activation='relu'))
+        model.add(Dropout(0.5))
+        model.add(Dense(4096, activation='relu'))
+        model.add(Dropout(0.5))
         model.add(Dense(256, activation='relu'))
         model.add(Dense(1, activation='sigmoid'))
-
-        print('\n\nDiscriminator')
-        model.summary()
 
         img = Input(shape=self.img_shape)
         validity = model(img)
 
-        return Model(img, validity)
+        m = Model(img, validity)
+
+        print('\n\nDiscriminator')
+        m.summary()
+
+        return m
 
     def train(self, epochs, batch_size=128, sample_interval=50):
 
@@ -139,7 +160,7 @@ class GAN():
                 self.sample_images(epoch)
 
     def load_imgs_and_labels(self, n):
-        
+
         idx = np.random.randint(0, len(self._img_names), n)
 
         imgs = None
@@ -155,7 +176,7 @@ class GAN():
                 imgs = np.vstack((imgs, img))
             else:
                 imgs = img
-        
+
         labels = [x.split('/')[1] for x in self._img_names[idx]]
         labels = np.array([self.class_names.index(x) for x in labels])
 
