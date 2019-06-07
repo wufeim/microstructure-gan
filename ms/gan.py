@@ -25,6 +25,8 @@ class GAN():
         self.img_cols = 1280
         self.channels = 1
         self.img_shape = (self.img_rows, self.img_cols, self.channels)
+        self.num_classes = 5
+        self.class_names = ['DUM555', 'DUM560', 'DUM562', 'DUM587', 'DUM588']
         self.latent_dim = 100
 
         self._amplify_rate = 32
@@ -182,7 +184,7 @@ class GAN():
         for x in self._img_names[idx]:
             img = cv2.imread(x)
             img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            img *= 255.0/img.max()
+            img = img.astype('float32') / 255
             img = img[:960, :1280]
             img = np.expand_dims(img, axis=2)
             # print(img.shape)
@@ -223,5 +225,5 @@ if __name__=='__main__':
 
     os.makedirs('gen-ms', exist_ok=True)
     gan = GAN()
-    gan.train(epochs=20000, batch_size=16, sample_interval=500)
+    gan.train(epochs=20000, batch_size=4, sample_interval=500)
 

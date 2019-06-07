@@ -28,7 +28,7 @@ class CGAN():
         self.img_shape = (self.img_rows, self.img_cols, self.channels)
         self.num_classes = 5
         self.class_names = ['DUM555', 'DUM560', 'DUM562', 'DUM587', 'DUM588']
-        self.latent_dim = 1000
+        self.latent_dim = 100
 
         optimizer = Adam(0.0002, 0.5)
 
@@ -98,7 +98,10 @@ class CGAN():
 
         # model_input = multiply([flat_img, label_embedding])
         # model_input = Reshape(self.img_shape)(model_input)
-        model_input = Concatenate([img, Reshape(self.img_shape)(Embedding(self.num_classes, np.prod(self.img_shape)))])
+        model_input = Embedding(self.num_classes, np.prod(self.img_shape))(label)
+        model_input = Reshape((self.img_shape[0], self.img_shape[1], 1))(model_input)
+        img = Reshape((self.img_shape[0], self.img_shape[1], 1))(img)
+        model_input = Concatenate(axis=-1)([img, model_input])
 
         validity = model(model_input)
 
