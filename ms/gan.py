@@ -48,6 +48,21 @@ class GAN():
         self.combined.compile(loss='binary_crossentropy',
                               optimizer=optimizer)
 
+        # initialization for training images
+        # directory layout:
+        #     .
+        #     \-- data/
+        #         |-- class1/
+        #         |   |-- *.tif
+        #         |   \-- *.tif
+        #         \-- class2/
+        #             |-- *.tif
+        #             \-- *.tif
+        names = []
+        for c in self.class_names:
+            names += glob.glob('data/{:s}/*.tif'.format(c))
+        self._img_names = np.array(names)
+
     def build_generator(self):
 
         resized_size = (self.img_shape[0] // self._amplify_rate, self.img_shape[1] // self._amplify_rate, self.img_shape[2])
