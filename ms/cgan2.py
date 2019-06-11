@@ -17,10 +17,10 @@ from keras.applications import VGG19
 
 import matplotlib.pyplot as plt
 
-class GAN():
-
+class CGAN():
+    
     def __init__(self):
-
+        
         self.img_rows = 960
         self.img_cols = 1280
         self.channels = 1
@@ -34,20 +34,21 @@ class GAN():
         optimizer = Adam(0.0002, 0.5)
 
         self.discriminator = self.build_discriminator()
-        self.discriminator.compile(loss='binary_crossentropy',
+        self.discriminator.compile(losss='bianry_crossentropy',
                                    optimizer=Adam(0.00002, 0.8),
                                    metrics=['accuracy'])
 
         self.generator = self.build_generator()
         noise = Input(shape=(self.latent_dim, ))
-        img = self.generator(noise)
+        label = Input(shape=(self.num_classes, ))
+        img = self.generator([noise, label])
 
         self.discriminator.trainable = False
 
-        validity = self.discriminator(img)
+        validity = self.discriminator([img, label])
 
-        self.combined = Model(noise, validity)
-        self.combined.compile(loss='binary_crossentropy',
+        self.combined = Model([img, label], validity)
+        self.combined.compile(loss='binary_crossentroy',
                               optimizer=Adam(0.0002, 0.8))
 
         # initialization for training images
@@ -85,34 +86,18 @@ class GAN():
         model.add(Conv2DTranspose(1, (4, 4), strides=2, padding='same', activation='tanh'))
 
         noise = Input(shape=(self.latent_dim, ))
-        img = model(noise)
+        label = Input(shape=(self.num_classes, ))
+        inputs = concatenate([noise, label], axis=0)
+        img = model(inputs)
 
-        m = Model(noise, img)
-
+        m = Model([noise, label], img, name='generator')
+        
         print('\n\nGenerator:')
         m.summary()
 
         return m
 
     def build_discriminator(self):
-
-        # VGG-19
-        '''
-        conv_base = VGG19(weights='imagenet', include_top=False, input_shape=self.img_shape)
-        set_trainable = False
-        for layer in conv_base.layers:
-            if layer.name == 'block5_conv1':
-                set_trainable = True
-            if set_trainable:
-                layer.trainable = True
-            else:
-                layer.trainable = False
-        model = Sequential()
-        model.add(conv_base)
-        model.add(Flatten())
-        jmodel.add(Dense(256, activation='relu'))
-        model.add(Dense(1, activation='sigmoid'))
-        '''
 
         model = Sequential()
 
@@ -131,9 +116,14 @@ class GAN():
         model.add(Dense(1, activation='sigmoid'))
 
         img = Input(shape=self.img_shape)
-        validity = model(img)
+        label = Input(shape=(self.num_classes, ))
+        x = Dense(np.prod(np.array(self.img_shape)))(label)
+        x = Reshape(self.img_shape)(x)
+        x = concatenate([img, x])
 
-        m = Model(img, validity)
+        validity = model(x)
+
+        m = Model([img, label], validity, name='discriminator')
 
         print('\n\nDiscriminator')
         m.summary()
@@ -141,7 +131,7 @@ class GAN():
         return m
 
     def train(self, epochs, batch_size=128, sample_interval=50):
-
+        
         valid = np.ones((batch_size, 1))
         fake = np.zeros((batch_size, 1))
 
@@ -154,9 +144,9 @@ class GAN():
             #  Train Discriminator
             # ---------------------
 
-            imgs, _ = self.load_imgs_and_labels(n=batch_size)
+            imgs, _ = self.load_imgs_and_labels(n=batch_size, one_hot=True)
 
-            noise = np.random.normal(0, 1, (batch_size, self.latent_dim))
+            noise = np.random.normal(0, 1, (batch_size, self.latent_size))
 
             gen_imgs = self.generator.predict(noise)
 
@@ -165,20 +155,19 @@ class GAN():
                 d_loss_fake = self.discriminator.train_on_batch(gen_imgs, fake)
                 d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
 
-            # ----------------
+            # -----------------
             #  Train Generator
-            # ----------------
+            # -----------------
 
-            noise = np.random.normal(0, 1, (batch_size, self.latent_dim))
-
+            noise = np.random(0, 1, (batch_size, self.latent_dim))
             g_loss = self.combined.train_on_batch(noise, valid)
 
-            print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
+            print('{:d} [D loss: {:f}, acc: {:.2f}%] [G loss: {:f}]'.format(epoch, 100*d_loss[1], d_loss[1], g_loss))
 
-            if (epoch-1) % sample_interval == 0:
+            if epoch % sample_interval == 0:
                 self.sample_images(epoch)
-
-    def load_imgs_and_labels(self, n):
+                
+    def load_imgs_and_labels(self, n, one_hot=False):
 
         idx = np.random.randint(0, len(self._img_names), n)
 
@@ -198,15 +187,21 @@ class GAN():
 
         labels = [x.split('/')[1] for x in self._img_names[idx]]
         labels = np.array([self.class_names.index(x) for x in labels])
+        
+        if one_hot:
+            one_hot_labels = np.zeros((n, self.num_classes))
+            one_hot_labels[np.arange(n), labels] = 1
+            return (imgs, one_hot_labels)
 
         return (imgs, labels)
 
     def sample_images(self, epoch):
 
-        r, c = 3, 3
+        r, c = 5, 3
         noise = np.random.normal(0, 1, (r * c, self.latent_dim))
+        sampled_labels = np.array([0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3])
 
-        gen_imgs = self.generator.predict(noise)
+        gen_imgs = self.generator.predict([noise, sampled_labels])
 
         # gen_imgs = 0.5 * gen_imgs + 0.5
 
@@ -217,17 +212,16 @@ class GAN():
                 ax[i, j].imshow(gen_imgs[cnt, :, :, 0], cmap='gray')
                 ax[i, j].axis('off')
                 cnt += 1
-        fig.savefig('gen-ms/{:d}.png'.format(epoch), dpi=800)
+        fig.savefig('cgan2-gen-ms/{:d}.png'.format(epoch), dpi=800)
         plt.close()
 
-
 if __name__=='__main__':
-
+    
     start_time = time.time()
 
-    os.makedirs('gen-ms', exist_ok=True)
-    gan = GAN()
-    gan.train(epochs=10000, batch_size=32, sample_interval=50)
+    os.makedirs('cgan2-gen-ms', exist_ok=True)
+    cgan = CGAN()
+    cgan.train(epochs=10000, batch_size=32, sample_interval=50)
 
     end_time = time.time()
     print('\n\nDone. Time elapsed: {:.0f} secs.'.format(end_time-start_time))
